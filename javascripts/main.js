@@ -1,33 +1,39 @@
 console.log('This would be the main JS file.');
 
 var canvas = document.getElementById("display");
+var particleTypes = Object.freeze({
+	solute: 'solute', 
+	solvent: 'solvent', 
+    });
 var particles;
 
 var init = function() {
     particles = []
     // Solute:
-    for (var i = 0; i < 8; i++) {
+    for (var i = 0; i < 25; i++) {
 	var p = {
-	    x: 50 * (i + 1), 
-	    y: 30 * (i + 1), 
-	    vx: 4, 
-	    vy: 4, 
+	    x: Math.random() * canvas.width, 
+	    y: Math.random() * canvas.height, 
+	    vx: 5, 
+	    vy: 5, 
 	    color: '#FF8888', 
-	    radius: 10, 
-	    mass: 100, 
+	    radius: 5, 
+	    mass: 25, 
+	    type: particleTypes.solute, 
 	};
 	particles.push(p);
     }
     // Solvent:
-    for (var i = 0; i < 20; i++) {
+    for (var i = 0; i < 200; i++) {
 	var p = {
-	    x: 15 * (i + 1), 
-	    y: 200 + 10 * (i + 1), 
-	    vx: 4, 
-	    vy: 4, 
+	    x: Math.random() * canvas.width, 
+	    y: Math.random() * canvas.height, 
+	    vx: 5, 
+	    vy: 5, 
 	    color: '#8899AA', 
-	    radius: 5, 
-	    mass: 25, 
+	    radius: 3, 
+	    mass: 4, 
+	    type: particleTypes.solvent, 
 	};
 	if (i == 0)
 	    p.color = '#FF0000';
@@ -60,24 +66,28 @@ var step = function() {
 	p.x += p.vx;
 	p.y += p.vy;
 
+	// Check for particle-wall collisions
+	//
 	// Corrective factors are commented out to avoid creating collisions 
 	// with other particles:
 	if (p.x - p.radius < 0) {
 	    p.x = p.radius;// + (p.radius - p.x);
-	    p.vx = -p.vx;
+	    // Use abs so that if somehow we're moving away from the wall we do nothing
+	    p.vx = Math.abs(p.vx);
 	} else if (p.x + p.radius > canvas.width) {
 	    p.x = canvas.width - p.radius;// - (p.x + p.radius - canvas.width);
-	    p.vx = -p.vx;
+	    p.vx = -Math.abs(p.vx);
 	}
 	if (p.y - p.radius < 0) {
 	    p.y = p.radius;// + (p.radius - p.y);
-	    p.vy = -p.vy;
+	    p.vy = Math.abs(p.vy);
 	} else if (p.y + p.radius > canvas.height) {
 	    p.y = canvas.height - p.radius;// - (p.y + p.radius - canvas.height);
-	    p.vy = -p.vy;
+	    p.vy = -Math.abs(p.vy);
 	}
     }
 
+    // Check for particle-particle collisions
     for (var i = 0; i < particles.length; i++) {
 	for (var j = i + 1; j < particles.length; j++) {
 	    var p = particles[i];
@@ -86,16 +96,25 @@ var step = function() {
 	    if (i == j || d > p.radius + q.radius)
 		continue;
 
+	    // Undo the collision:
+	    p.x -= p.vx; p.y -= p.vy;
+	    q.x -= q.vx; q.y -= q.vy;
+	    d = dist(p, q);
+
+	    if (d == 0) // Pretty unlikely haha
+		continue;
+
 	    var dot = (p.vx - q.vx) * (p.x - q.x) + (p.vy - q.vy) * (p.y - q.y);
 	    p.vx -= 2 * q.mass / (p.mass + q.mass) * dot / (d * d) * (p.x - q.x);
 	    p.vy -= 2 * q.mass / (p.mass + q.mass) * dot / (d * d) * (p.y - q.y);
 	    q.vx -= 2 * p.mass / (p.mass + q.mass) * dot / (d * d) * (q.x - p.x);
 	    q.vy -= 2 * p.mass / (p.mass + q.mass) * dot / (d * d) * (q.y - p.y);
 
-	    // Push them apart, to partially cancel any excess movement towards each other we allowed:
-	    p.x += p.vx; p.y += p.vy;
-	    q.x += q.vx; q.y += q.vy;
-
+	    if (d <= p.radius + q.radius) {
+		// If the previous unsticking didn't help then try this:
+		p.x += p.vx; p.y += p.vy;
+		q.x += q.vx; q.y += q.vy;
+	    }
 	}
     }
 
