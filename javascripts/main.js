@@ -6,32 +6,47 @@ var particleTypes = Object.freeze({
 	solvent: 'solvent', 
     });
 var particles;
+var walls;
 
 var init = function() {
     particles = []
-    // Solute:
-    for (var i = 0; i < 25; i++) {
+    // Solute left:
+    for (var i = 0; i < 200; i++) {
 	var p = {
-	    x: Math.random() * canvas.width, 
+	    x: (0.5 * canvas.width - 5) * Math.random(), 
 	    y: Math.random() * canvas.height, 
-	    vx: 5, 
-	    vy: 5, 
+	    vx: 2 * (Math.random() - 1), 
+	    vy: 2 * (2 * Math.random() - 1), 
 	    color: '#FF8888', 
 	    radius: 5, 
-	    mass: 25, 
+	    mass: 8, 
+	    type: particleTypes.solute, 
+	};
+	particles.push(p);
+    }
+    // Solute right:
+    for (var i = 0; i < 50; i++) {
+	var p = {
+	    x: 0.5 * canvas.width + 5 + (0.5 * canvas.width - 5) * Math.random(), 
+	    y: Math.random() * canvas.height, 
+	    vx: 2 * (2 * Math.random() - 1), 
+	    vy: 2 * (2 * Math.random() - 1), 
+	    color: '#FF8888', 
+	    radius: 5, 
+	    mass: 8, 
 	    type: particleTypes.solute, 
 	};
 	particles.push(p);
     }
     // Solvent:
-    for (var i = 0; i < 200; i++) {
+    for (var i = 0; i < 500; i++) {
 	var p = {
 	    x: Math.random() * canvas.width, 
 	    y: Math.random() * canvas.height, 
-	    vx: 5, 
-	    vy: 5, 
+	    vx: 2 * (2 * Math.random() - 1), 
+	    vy: 2 * (2 * Math.random() - 1), 
 	    color: '#8899AA', 
-	    radius: 3, 
+	    radius: 2, 
 	    mass: 4, 
 	    type: particleTypes.solvent, 
 	};
@@ -39,6 +54,14 @@ var init = function() {
 	    p.color = '#FF0000';
 	particles.push(p);
     }
+
+    walls = [];
+    walls.push({
+	    p1: {x: canvas.width / 2, y: 0}, 
+	    p2: {x: canvas.width / 2, y: canvas.height }, 
+	    style: '#AAAAAA', 
+	    blocks: function(type) { return type == particleTypes.solute; }, 
+	});
 };
 
 var draw = function() {
@@ -53,16 +76,59 @@ var draw = function() {
 	ctx.fillStyle = p.color;
 	ctx.fill();
     }
+
+    for (var i = 0; i < walls.length; i++) {
+	var w = walls[i];
+	ctx.beginPath();
+	ctx.moveTo(w.p1.x, w.p1.y);
+	ctx.lineTo(w.p2.x, w.p2.y);
+	ctx.strokeStyle = w.style;
+	ctx.stroke();
+    }
+};
+
+var times = function(c, v) {
+    return {
+	x: c * v.x, 
+	y: c * v.y, 
+    };
+};
+
+var add = function(v, u) {
+    return {
+	x: v.x + u.x, 
+	y: v.y + u.y, 
+    };
+};
+
+var sub = function(v, u) {
+    return add(v, times(-1, u));
+};
+
+var norm = function(v) {
+    return Math.sqrt(v.x * v.x + v.y * v.y);
+};
+
+var dot = function(v, u) {
+    return v.x * u.x + v.y * u.y;
 };
 
 var dist = function(p, q) {
-    var square = function(x) { return x * x; };
-    return Math.sqrt(square(p.x - q.x) + square(p.y - q.y));
+    return norm(sub(p, q));
+};
+
+var vec = function(x, y) {
+    return {
+	x: x, 
+	y: y, 
+    };
 };
 
 var step = function() {
+    var oldCollisions = [];
     for (var i = 0; i < particles.length; i++) {
 	var p = particles[i];
+	oldCollisions.push(vec(p.x, p.y));
 	p.x += p.vx;
 	p.y += p.vy;
 
@@ -104,11 +170,11 @@ var step = function() {
 	    if (d == 0) // Pretty unlikely haha
 		continue;
 
-	    var dot = (p.vx - q.vx) * (p.x - q.x) + (p.vy - q.vy) * (p.y - q.y);
-	    p.vx -= 2 * q.mass / (p.mass + q.mass) * dot / (d * d) * (p.x - q.x);
-	    p.vy -= 2 * q.mass / (p.mass + q.mass) * dot / (d * d) * (p.y - q.y);
-	    q.vx -= 2 * p.mass / (p.mass + q.mass) * dot / (d * d) * (q.x - p.x);
-	    q.vy -= 2 * p.mass / (p.mass + q.mass) * dot / (d * d) * (q.y - p.y);
+	    var vpdot = (p.vx - q.vx) * (p.x - q.x) + (p.vy - q.vy) * (p.y - q.y);
+	    p.vx -= 2 * q.mass / (p.mass + q.mass) * vpdot / (d * d) * (p.x - q.x);
+	    p.vy -= 2 * q.mass / (p.mass + q.mass) * vpdot / (d * d) * (p.y - q.y);
+	    q.vx -= 2 * p.mass / (p.mass + q.mass) * vpdot / (d * d) * (q.x - p.x);
+	    q.vy -= 2 * p.mass / (p.mass + q.mass) * vpdot / (d * d) * (q.y - p.y);
 
 	    if (d <= p.radius + q.radius) {
 		// If the previous unsticking didn't help then try this:
@@ -118,10 +184,56 @@ var step = function() {
 	}
     }
 
+    for (var i = 0; i < particles.length; i++) {
+	var p = particles[i];
+	for (var j = 0; j < walls.length; j++) {
+	    var w = walls[j];
+
+	    if (!w.blocks(p.type))
+		continue;
+	    
+	    var dir = sub(w.p1, w.p2);
+	    var u = times(1 / norm(dir), dir);
+	    var uPerp = vec(u.y, -u.x);
+
+	    var dot1 = dot(sub(vec(p.x, p.y), w.p1), vec(u.y, -u.x));
+	    var dot2 = dot(sub(vec(p.x - p.vx, p.y - p.vy), w.p1), uPerp);
+	    // We hit if we switch sides or intersect the line:
+	    if (dot1 * dot2 > 0 && Math.abs(dot1) > p.radius)
+		continue;
+
+	    p.x = oldCollisions[i].x;
+	    p.y = oldCollisions[i].y;
+
+	    var pv = vec(p.vx, p.vy);
+	    var parallel = times(dot(pv, u), u);
+	    var perp = sub(pv, parallel);
+
+	    if (dot(perp, uPerp) * dot(sub(vec(p.x, p.y), w.p1), uPerp) < 0)
+		perp = times(-1, perp);
+	    var result = add(parallel, perp);
+
+	    p.vx = result.x;
+	    p.vy = result.y;
+	}
+    }
+
+    var leftCount = 0;
+    var rightCount = 0;
+    for (var i = 0; i < particles.length; i++) {
+	if (particles[i].type != particleTypes.solvent)
+	    continue;
+	if (particles[i].x <= canvas.width / 2)
+	    leftCount++;
+	else
+	    rightCount++;
+    }
+    document.getElementById("lsolvent").innerHTML = leftCount;
+    document.getElementById("rsolvent").innerHTML = rightCount;
 
     draw();
 };
 
 init();
 draw();
-setInterval(step, 20);
+setInterval(step, 5);

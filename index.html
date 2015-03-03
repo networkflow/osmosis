@@ -6,7 +6,13 @@
 
     <link rel="stylesheet" type="text/css" href="stylesheets/stylesheet.css" media="screen">
     <link rel="stylesheet" type="text/css" href="stylesheets/pygment_trac.css" media="screen">
-    <link rel="stylesheet" type="text/css" href="stylesheets/print.css" media="print">
+    <!--<link rel="stylesheet" type="text/css" href="stylesheets/print.css" media="print">-->
+    <style type="text/css">
+      table#info {
+        margin: 0;
+        padding: 0;
+      }
+    </style>
 
     <title>Osmosis by networkflow</title>
   </head>
@@ -31,7 +37,18 @@
         <h3>
 <a id="welcome-to-github-pages" class="anchor" href="#welcome-to-github-pages" aria-hidden="true"><span class="octicon octicon-link"></span></a>Welcome to GitHub Pages.</h3>
 
-	<canvas id="display" width="500" height="500" style="border: 1px solid gray;">Your broswer doesn't support the canvas tag.</canvas>
+	<table id="info">
+	  <tr>
+	    <th>Left:</th>
+	    <td id="lsolvent"></td>
+	  </tr>
+	  <tr>
+	    <th>Right:</th>
+	    <td id="rsolvent"></td>
+	  </tr>
+	</table>
+
+	<canvas id="display" width="800" height="400" style="border: 1px solid gray;">Your broswer doesn't support the canvas tag.</canvas>
 	<script src="javascripts/main.js"></script>
 
       </section>
